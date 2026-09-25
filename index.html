@@ -17,8 +17,8 @@
   /* ===== 色（白ベース・黒文字） ===== */
   :root {
     --paper: #FFFFFF;
-    --ink:   #111111;
-    --sub:   #555555;
+    --ink:   #3F2A27;
+    --sub:   #7A6360;
     --soft:  #F2F2F2;
     color-scheme: light;
     box-sizing: border-box;
@@ -120,7 +120,7 @@
 
 <div id="toast"></div>
 <div class="wrap">
-  <h1><img class="logo" src="icon-512.png" alt="NO SMOKING"></h1>
+  <h1><img class="logo" src="logo.png" alt="NO SMOKING"></h1>
 
   <!-- ===== はじめての設定 ===== -->
   <section id="vSetup" class="hide">
@@ -358,89 +358,61 @@ if (s && s.start) show('vMain');
 else { document.getElementById('sStart').value = toLocalInput(Date.now()); show('vSetup'); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
-<!-- ===== デコレーション：上から下へ流れる NO SMOKING（ここから） ===== -->
+<!-- ===== 手書きパーツ（Canvaで作った枠）ここから ===== -->
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
-  body { position: relative; overflow-x: hidden; }
-  .wrap { position: relative; z-index: 1; }
-  /* 箱や文章のうしろは白くして、読みやすさをキープ */
-  .hd:not(.craving) { background: var(--paper); border-radius: var(--r, 14px 20px 12px 22px / 20px 12px 22px 14px); }
-  .chk { isolation: isolate; }   /* 丸いチェックが白い背景に隠れないように */
-  #miles, #vMain > h2, #vMain > .note, .ghost { background: var(--paper); }
-  #deco { position: absolute; left: 0; top: 0; width: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
-  #deco text { font-family: "Permanent Marker", "Arial Black", sans-serif; fill: var(--ink); letter-spacing: 1px; }
-  #deco .mark { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  /* 大きいだ円：top.png（「smoke free for」の文字も画像に入っています） */
+  #vMain .hd.hero { background: url("top-brown.png") center / 100% 100% no-repeat, var(--paper);
+    aspect-ratio: 1000 / 620; padding: 24% 0 0; margin: 6px 0 20px; border-radius: 0; }
+  #vMain .hd.hero::before { display: none; }
+  #vMain .hero .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  #vMain .hero .days { font-size: 3.8rem; margin: 0; }
+  #vMain .hero .clock { font-size: 1.2rem; margin-top: 2px; }
+
+  /* 4つの数字の枠：box.png */
+  #vMain .hd.stat { background: url("box.png") center / 100% 100% no-repeat, var(--paper);
+    aspect-ratio: 600 / 400; border-radius: 0; display: flex; flex-direction: column; justify-content: center; padding: 6px; }
+  #vMain .hd.stat::before { display: none; }
 </style>
-<svg id="deco" aria-hidden="true"></svg>
-<script>
-(function () {
-  // ▼ ここを変えると、流れる言葉・大きさ・カーブの間隔が変わります
-  const WORD = 'NO SMOKING ・ ';
-  const SIZE = 24;        // 文字の大きさ
-  const WAVE = 460;       // カーブ1回分の高さ（小さいほど細かくうねる）
+<!-- ===== 手書きパーツ（ここまで） ===== -->
 
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.getElementById('deco');
-  let lastH = 0, lastW = 0;
-
-  function el(tag, attrs) {
-    const e = document.createElementNS(NS, tag);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    return e;
-  }
-  function star(x, y, s) {   // 手描きの星
-    return el('path', { class: 'mark', d:
-      `M${x} ${y - 10 * s} L${x + 3 * s} ${y - 3 * s} L${x + 10 * s} ${y - 2 * s} L${x + 4 * s} ${y + 3 * s} L${x + 6 * s} ${y + 10 * s} L${x} ${y + 6 * s} L${x - 6 * s} ${y + 10 * s} L${x - 4 * s} ${y + 3 * s} L${x - 10 * s} ${y - 2 * s} L${x - 3 * s} ${y - 3 * s} Z` });
-  }
-  function burst(x, y, s, flip) {   // 勢いの線（〃）
-    const f = flip ? -1 : 1;
-    return el('path', { class: 'mark', d:
-      `M${x} ${y} l${f * 14 * s} ${-26 * s} M${x + f * 16 * s} ${y + 4 * s} l${f * 20 * s} ${-22 * s} M${x + f * 26 * s} ${y + 16 * s} l${f * 24 * s} ${-12 * s}` });
-  }
-
-  function draw() {
-    const w = document.documentElement.clientWidth;
-    const h = Math.max(document.body.scrollHeight, window.innerHeight);
-    if (h === lastH && w === lastW) return;
-    lastH = h; lastW = w;
-    svg.setAttribute('width', w); svg.setAttribute('height', h);
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    svg.innerHTML = '';
-
-    // 右上から、左右にゆれながら下へ流れるカーブ
-    let x = w * 0.96, y = -40, d = `M ${x} ${y}`, right = true;
-    while (y < h + WAVE) {
-      const nx = right ? w * 0.04 : w * 0.96, ny = y + WAVE;
-      d += ` C ${x} ${y + WAVE * 0.55} ${nx} ${ny - WAVE * 0.55} ${nx} ${ny}`;
-      x = nx; y = ny; right = !right;
-    }
-    const path = el('path', { id: 'decoPath', d, fill: 'none' });
-    svg.appendChild(path);
-    const len = path.getTotalLength();
-    const reps = Math.ceil(len / (WORD.length * SIZE * 0.62)) + 2;
-
-    const text = el('text', { 'font-size': SIZE });
-    const tp = el('textPath', { href: '#decoPath' });
-    tp.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#decoPath');
-    tp.textContent = WORD.repeat(reps);
-    text.appendChild(tp); svg.appendChild(text);
-
-    // 星と勢いの線を、左右のすき間に少しだけ
-    for (let yy = 120, i = 0; yy < h - 60; yy += 380, i++) {
-      const left = i % 2 === 0;
-      svg.appendChild(star(left ? 20 : w - 20, yy, 1));
-      if (i % 2 === 1) svg.appendChild(burst(left ? w - 60 : 14, yy + 170, 1, !left));
-    }
-  }
-
-  window.addEventListener('load', draw);
-  window.addEventListener('resize', draw);
-  new ResizeObserver(draw).observe(document.body);
-  if (document.fonts) document.fonts.ready.then(() => { lastH = 0; draw(); });
-  draw();
-})();
-</script>
-<!-- ===== デコレーション（ここまで） ===== -->
-
+<!-- ===== ステッカー風の枠（ここから） ===== -->
+<style>
+  /* 共通：色つきの形をうしろに敷いて、すみに小さな飾りをのせる */
+  #vMain .stats .stat, #vMain #goalBox, #vMain .craving {
+    position: relative; border-radius: 0; aspect-ratio: auto; overflow: visible;
+    background-color: transparent !important; background-repeat: no-repeat; background-size: 100% 100%; background-position: center; }
+  #vMain .stats .stat::before, #vMain #goalBox::before, #vMain .craving::before { display: none; }
+  #vMain .stats .stat::after, #vMain #goalBox::after, #vMain .craving::after {
+    content: ""; position: absolute; width: 42px; height: 42px; opacity: 1; border: none; filter: none;
+    background: var(--acc) center / contain no-repeat; pointer-events: none; inset: auto; }
+  #vMain .stats { gap: 18px 16px; }
+  #vMain .stats .stat { padding: 20px 10px; min-height: 104px; display: flex; flex-direction: column; justify-content: center; }
+  #vMain .stat .v { font-size: 1.75rem; font-weight: 900; }
+  #vMain .stat .l { font-weight: 700; opacity: .9; }
+  #vMain #goalBox { padding: 20px 22px 18px; margin-top: 26px !important; }
+  #vMain #goalBox .note { color: inherit; opacity: .85; font-weight: 700; }
+  #vMain #goalBox .bar::before { border-color: #3F2A27; background: rgba(255,255,255,.5); }
+  #vMain #goalBox .bar i { background: #3F2A27; }
+  #vMain .craving { padding: 26px; font-size: 1.4rem; margin-top: 26px !important; letter-spacing: .04em; }
+  #vMain .stats .stat:nth-child(1) { background-image: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 200%22 preserveAspectRatio=%22none%22><path d=%22M18 34 Q24 10 64 12 L262 18 Q292 20 288 56 L282 162 Q278 192 240 188 L44 182 Q10 178 12 144 Z%22 fill=%22%23C6DCF1%22/></svg>"); color: #7A0F14; --acc: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><line x1=%2239.0%22 y1=%2230.0%22 x2=%2257.0%22 y2=%2230.0%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2238.5%22 y1=%2233.1%22 x2=%2255.4%22 y2=%2239.2%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2236.9%22 y1=%2235.8%22 x2=%2250.7%22 y2=%2247.4%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2234.5%22 y1=%2237.8%22 x2=%2243.5%22 y2=%2253.4%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2231.6%22 y1=%2238.9%22 x2=%2234.7%22 y2=%2256.6%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2228.4%22 y1=%2238.9%22 x2=%2225.3%22 y2=%2256.6%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2225.5%22 y1=%2237.8%22 x2=%2216.5%22 y2=%2253.4%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2223.1%22 y1=%2235.8%22 x2=%229.3%22 y2=%2247.4%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2221.5%22 y1=%2233.1%22 x2=%224.6%22 y2=%2239.2%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2221.0%22 y1=%2230.0%22 x2=%223.0%22 y2=%2230.0%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2221.5%22 y1=%2226.9%22 x2=%224.6%22 y2=%2220.8%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2223.1%22 y1=%2224.2%22 x2=%229.3%22 y2=%2212.6%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2225.5%22 y1=%2222.2%22 x2=%2216.5%22 y2=%226.6%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2228.4%22 y1=%2221.1%22 x2=%2225.3%22 y2=%223.4%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2231.6%22 y1=%2221.1%22 x2=%2234.7%22 y2=%223.4%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2234.5%22 y1=%2222.2%22 x2=%2243.5%22 y2=%226.6%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2236.9%22 y1=%2224.2%22 x2=%2250.7%22 y2=%2212.6%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2238.5%22 y1=%2226.9%22 x2=%2255.4%22 y2=%2220.8%22 stroke=%22%233F2A27%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/></svg>"); }
+  #vMain .stats .stat:nth-child(1)::after { top:-16px; right:-10px; }
+  #vMain .stats .stat:nth-child(1) .l { color: #7A0F14; }
+  #vMain .stats .stat:nth-child(2) { background-image: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 200%22 preserveAspectRatio=%22none%22><path d=%22M8 44 L276 10 Q296 8 294 32 L288 150 Q286 172 262 174 L128 178 L76 200 L86 178 L32 176 Q8 174 8 150 Z%22 fill=%22%23FBE8A6%22/></svg>"); color: #3F2A27; --acc: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><ellipse cx=%2230%22 cy=%2214%22 rx=%228%22 ry=%2213%22 fill=%22%237A0F14%22 transform=%22rotate(0 30 30)%22/><ellipse cx=%2230%22 cy=%2214%22 rx=%228%22 ry=%2213%22 fill=%22%237A0F14%22 transform=%22rotate(60 30 30)%22/><ellipse cx=%2230%22 cy=%2214%22 rx=%228%22 ry=%2213%22 fill=%22%237A0F14%22 transform=%22rotate(120 30 30)%22/><ellipse cx=%2230%22 cy=%2214%22 rx=%228%22 ry=%2213%22 fill=%22%237A0F14%22 transform=%22rotate(180 30 30)%22/><ellipse cx=%2230%22 cy=%2214%22 rx=%228%22 ry=%2213%22 fill=%22%237A0F14%22 transform=%22rotate(240 30 30)%22/><ellipse cx=%2230%22 cy=%2214%22 rx=%228%22 ry=%2213%22 fill=%22%237A0F14%22 transform=%22rotate(300 30 30)%22/><circle cx=%2230%22 cy=%2230%22 r=%227%22 fill=%22%23FBE8A6%22/></svg>"); }
+  #vMain .stats .stat:nth-child(2)::after { bottom:-16px; right:-10px; }
+  #vMain .stats .stat:nth-child(2) .l { color: #3F2A27; }
+  #vMain .stats .stat:nth-child(3) { background-image: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 200%22 preserveAspectRatio=%22none%22><path d=%22M30 10 C120 0 240 6 280 30 C300 90 296 150 270 186 C180 198 80 196 20 180 C4 130 6 60 30 10 Z%22 fill=%22%23FBE8A6%22/></svg>"); color: #3F2A27; --acc: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><path d=%22M30 2 C33 22 38 27 58 30 C38 33 33 38 30 58 C27 38 22 33 2 30 C22 27 27 22 30 2 Z%22 fill=%22%237A0F14%22/></svg>"); }
+  #vMain .stats .stat:nth-child(3)::after { bottom:-14px; left:-10px; }
+  #vMain .stats .stat:nth-child(3) .l { color: #3F2A27; }
+  #vMain .stats .stat:nth-child(4) { background-image: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 200%22 preserveAspectRatio=%22none%22><path d=%22M40 30 C100 0 220 10 270 40 C300 70 290 150 250 175 C190 200 90 196 40 172 C0 150 2 60 40 30 Z%22 fill=%22%23C6DCF1%22/></svg>"); color: #7A0F14; --acc: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><rect x=%2227%22 y=%222%22 width=%226%22 height=%2256%22 rx=%223%22 fill=%22%233F2A27%22 transform=%22rotate(0 30 30)%22/><rect x=%2227%22 y=%222%22 width=%226%22 height=%2256%22 rx=%223%22 fill=%22%233F2A27%22 transform=%22rotate(30 30 30)%22/><rect x=%2227%22 y=%222%22 width=%226%22 height=%2256%22 rx=%223%22 fill=%22%233F2A27%22 transform=%22rotate(60 30 30)%22/><rect x=%2227%22 y=%222%22 width=%226%22 height=%2256%22 rx=%223%22 fill=%22%233F2A27%22 transform=%22rotate(90 30 30)%22/><rect x=%2227%22 y=%222%22 width=%226%22 height=%2256%22 rx=%223%22 fill=%22%233F2A27%22 transform=%22rotate(120 30 30)%22/><rect x=%2227%22 y=%222%22 width=%226%22 height=%2256%22 rx=%223%22 fill=%22%233F2A27%22 transform=%22rotate(150 30 30)%22/></svg>"); }
+  #vMain .stats .stat:nth-child(4)::after { bottom:-16px; left:-6px; }
+  #vMain .stats .stat:nth-child(4) .l { color: #7A0F14; }
+  #vMain #goalBox { background-image: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 200%22 preserveAspectRatio=%22none%22><path d=%22M10 22 L290 8 L296 168 Q200 196 20 188 Q0 120 10 22 Z%22 fill=%22%23FBE8A6%22/></svg>"); color: #3F2A27; --acc: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><line x1=%2239.0%22 y1=%2230.0%22 x2=%2257.0%22 y2=%2230.0%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2238.5%22 y1=%2233.1%22 x2=%2255.4%22 y2=%2239.2%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2236.9%22 y1=%2235.8%22 x2=%2250.7%22 y2=%2247.4%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2234.5%22 y1=%2237.8%22 x2=%2243.5%22 y2=%2253.4%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2231.6%22 y1=%2238.9%22 x2=%2234.7%22 y2=%2256.6%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2228.4%22 y1=%2238.9%22 x2=%2225.3%22 y2=%2256.6%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2225.5%22 y1=%2237.8%22 x2=%2216.5%22 y2=%2253.4%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2223.1%22 y1=%2235.8%22 x2=%229.3%22 y2=%2247.4%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2221.5%22 y1=%2233.1%22 x2=%224.6%22 y2=%2239.2%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2221.0%22 y1=%2230.0%22 x2=%223.0%22 y2=%2230.0%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2221.5%22 y1=%2226.9%22 x2=%224.6%22 y2=%2220.8%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2223.1%22 y1=%2224.2%22 x2=%229.3%22 y2=%2212.6%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2225.5%22 y1=%2222.2%22 x2=%2216.5%22 y2=%226.6%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2228.4%22 y1=%2221.1%22 x2=%2225.3%22 y2=%223.4%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2231.6%22 y1=%2221.1%22 x2=%2234.7%22 y2=%223.4%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2234.5%22 y1=%2222.2%22 x2=%2243.5%22 y2=%226.6%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2236.9%22 y1=%2224.2%22 x2=%2250.7%22 y2=%2212.6%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/><line x1=%2238.5%22 y1=%2226.9%22 x2=%2255.4%22 y2=%2220.8%22 stroke=%22%237A0F14%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/></svg>"); }
+  #vMain #goalBox::after { bottom:-18px; right:-10px; }
+  #vMain #goalBox .l { color: #3F2A27; }
+  #vMain .craving { background-image: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 200%22 preserveAspectRatio=%22none%22><path d=%22M20 44 C80 12 240 6 280 30 C300 62 296 140 270 170 C200 196 90 196 30 176 C4 150 2 72 20 44 Z%22 fill=%22%233F2A27%22/></svg>"); color: #FBE8A6; --acc: url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><circle cx=%2230%22 cy=%2230%22 r=%2224%22 fill=%22%233F2A27%22/></svg>"); }
+  #vMain .craving::after { bottom:-12px; left:18px; width:34px; height:34px; }
+  #vMain .craving .l { color: #FBE8A6; }
+</style>
+<!-- ===== ステッカー風の枠（ここまで） ===== -->
 </body>
 </html>
