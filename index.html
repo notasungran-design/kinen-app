@@ -529,5 +529,120 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 </script>
 <!-- ===== アニメーション（ここまで） ===== -->
 
+<!-- ===== ごほうびバッジ（ここから） ===== -->
+<style>
+  .badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 8px; margin-bottom: 8px; }
+  .badge { aspect-ratio: 1; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 1.05rem; line-height: 1.1; border: none; padding: 0; position: relative; }
+  .badge small { font-size: .62rem; font-weight: 700; opacity: .85; margin-top: 2px; }
+  .badge.off { background: transparent !important; color: #B9AAA7 !important; border: 2.5px dashed #D8CCCA; }
+  .badge.on { box-shadow: 0 3px 0 rgba(63,42,39,.18); }
+  .badge.on::after { content: "✓"; position: absolute; top: -4px; right: -2px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--ink); color: #fff; font-size: .7rem; display: flex; align-items: center; justify-content: center; }
+
+  /* おめでとう画面 */
+  #cele { position: fixed; inset: 0; z-index: 60; background: rgba(255,255,255,.96); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 28px; }
+  #cele.hide { display: none; }
+  .cele-wrap { position: relative; width: 210px; height: 210px; margin-bottom: 18px; }
+  .cele-rays { position: absolute; inset: -30px; animation: spin 30s linear infinite; }
+  .cele-badge { position: absolute; inset: 20px; border-radius: 50%; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; font-weight: 900; font-size: 2.6rem; animation: celeIn .8s cubic-bezier(.2,1.4,.4,1) both; }
+  .cele-badge small { font-size: .85rem; margin-top: 4px; font-weight: 700; }
+  @keyframes celeIn { from { transform: scale(.2) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(-4deg); opacity: 1; } }
+  @keyframes spin { to { rotate: 360deg; } }
+  #cele h3 { font-size: 1.35rem; margin: 6px 0 8px; }
+  #cele p { color: var(--sub); line-height: 1.8; margin: 0 0 6px; font-weight: 500; }
+  #cele .saved { font-size: 1.05rem; color: var(--ink); font-weight: 900; margin: 10px 0 4px; }
+  #cele button { max-width: 280px; margin-top: 18px; }
+  @media (prefers-reduced-motion: reduce) { .cele-rays, .cele-badge { animation: none !important; } }
+</style>
+
+<div id="cele" class="hide">
+  <div class="cele-wrap">
+    <svg class="cele-rays" viewBox="0 0 100 100" aria-hidden="true">
+      <g stroke="#FBE8A6" stroke-width="3" stroke-linecap="round" id="celeRays"></g>
+    </svg>
+    <div class="cele-badge" id="celeBadge"></div>
+  </div>
+  <h3 id="celeTitle"></h3>
+  <p id="celeMsg"></p>
+  <div class="saved" id="celeSaved"></div>
+  <p id="celeGoal"></p>
+  <button class="primary" onclick="document.getElementById('cele').classList.add('hide')">ありがとう</button>
+</div>
+
+<script>
+(function () {
+  // ▼ バッジの一覧（日数・表示・メッセージ）ここを変えると自由にカスタマイズできます
+  const BADGES = [
+    { d: 1,   top: '1',   unit: '日',   title: '1日 すわずにいられました！',   msg: 'いちばん大変な最初の24時間をこえました。まずは自分をほめてあげてください。' },
+    { d: 3,   top: '3',   unit: '日',   title: '3日 つづきました！',           msg: '最初の山場をこえました。すいたい気持ちの波も、少しずつ小さくなっていきます。' },
+    { d: 7,   top: '1',   unit: '週間', title: '1週間 すわずにいられました！', msg: 'すごい、1週間です。この調子で、自分のペースで。' },
+    { d: 14,  top: '2',   unit: '週間', title: '2週間 たっせい！',             msg: '毎日のリズムが、少しずつ新しい習慣になってきています。' },
+    { d: 30,  top: '1',   unit: 'か月', title: '1か月 たっせい！',             msg: '1か月つづけられた自分に、ごほうびをあげましょう。' },
+    { d: 90,  top: '3',   unit: 'か月', title: '3か月 たっせい！',             msg: '季節がひとつ変わるあいだ、すわずにいられました。' },
+    { d: 180, top: '半年', unit: '',    title: '半年 たっせい！',               msg: 'ここまで来たら、もう立派な「すわない人」です。' },
+    { d: 365, top: '1',   unit: '年',   title: '1年 たっせい！',               msg: '1年間、本当におつかれさまでした。心からおめでとうございます。' },
+  ];
+  const COLORS = [['#C6DCF1', '#7A0F14'], ['#FBE8A6', '#3F2A27'], ['#7A0F14', '#FBE8A6'], ['#3F2A27', '#C6DCF1']];
+  const yenFmt = n => '¥' + Math.floor(n).toLocaleString('ja-JP');
+
+  // 光のすじ
+  document.getElementById('celeRays').innerHTML = Array.from({ length: 16 }, (_, i) => {
+    const a = i * Math.PI / 8, r1 = 34, r2 = i % 2 ? 44 : 49;
+    return `<line x1="${50 + r1 * Math.cos(a)}" y1="${50 + r1 * Math.sin(a)}" x2="${50 + r2 * Math.cos(a)}" y2="${50 + r2 * Math.sin(a)}"/>`;
+  }).join('');
+
+  // バッジ一覧の場所をつくる（「からだの回復のめやす」の上）
+  const h2s = [...document.querySelectorAll('#vMain h2')];
+  const anchor = h2s.find(h => h.textContent.includes('回復')) || h2s[0];
+  const title = document.createElement('h2'); title.textContent = 'ごほうびバッジ';
+  const grid = document.createElement('div'); grid.className = 'badges'; grid.id = 'badges';
+  if (anchor) { anchor.before(title); anchor.before(grid); }
+
+  function savedAt(days) { return days * s.perDay * s.price / s.perPack; }
+
+  function drawGrid() {
+    if (!s || !s.start) return;
+    const got = s.badges || {};
+    grid.innerHTML = BADGES.map((b, i) => {
+      const [bg, fg] = COLORS[i % 4], on = !!got[b.d];
+      return `<button class="badge ${on ? 'on' : 'off'}" style="background:${bg};color:${fg}" ${on ? `onclick="window.__showBadge(${i})"` : ''}>
+        ${b.top}<small>${b.unit || '&nbsp;'}</small></button>`;
+    }).join('');
+  }
+
+  function show(i) {
+    const b = BADGES[i], [bg, fg] = COLORS[i % 4];
+    const el = document.getElementById('celeBadge');
+    el.style.background = bg; el.style.color = fg;
+    el.innerHTML = `${b.top}<small>${b.unit}</small>`;
+    el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+    document.getElementById('celeTitle').textContent = b.title;
+    document.getElementById('celeMsg').textContent = b.msg;
+    document.getElementById('celeSaved').textContent = `この${b.top}${b.unit}で うかせたお金 ${yenFmt(savedAt(b.d))}`;
+    document.getElementById('celeGoal').textContent = s.goalName
+      ? `「${s.goalName}」にも、ちゃくちゃく近づいています 🎁` : '好きなものを買ったり、おいしいものを食べたり。自分にごほうびを。';
+    document.getElementById('cele').classList.remove('hide');
+  }
+  window.__showBadge = show;
+
+  // 新しくたっせいしたバッジがないか、ときどきチェック
+  function check() {
+    if (!s || !s.start) return;
+    s.badges = s.badges || {};
+    const days = (Date.now() - s.start) / 86400000;
+    let newest = -1;
+    BADGES.forEach((b, i) => { if (days >= b.d && !s.badges[b.d]) { s.badges[b.d] = Date.now(); newest = i; } });
+    if (newest >= 0) { save(); show(newest); }
+    drawGrid();
+  }
+  check();
+  setInterval(check, 5000);
+})();
+</script>
+<!-- ===== ごほうびバッジ（ここまで） ===== -->
+
 </body>
 </html>
