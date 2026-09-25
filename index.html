@@ -414,5 +414,120 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
   #vMain .craving .l { color: #FBE8A6; }
 </style>
 <!-- ===== ステッカー風の枠（ここまで） ===== -->
+<!-- ===== アニメーション（大人向け・控えめ）ここから ===== -->
+<style>
+  /* ひらいたとき：上から順にふわっと出てくる */
+  @keyframes rise { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
+  body.enter #vMain > * { animation: rise .7s cubic-bezier(.2,.8,.2,1) both; }
+  body.enter #vMain > *:nth-child(2) { animation-delay: .08s; }
+  body.enter #vMain > *:nth-child(3) { animation-delay: .16s; }
+  body.enter #vMain > *:nth-child(4) { animation-delay: .24s; }
+  body.enter #vMain > *:nth-child(n+5) { animation-delay: .32s; }
+
+  /* 4つのステッカーが、ゆっくり浮かぶ */
+  @keyframes float { from { translate: 0 0; } to { translate: 0 -4px; } }
+  #vMain .stats .stat { animation: float 4.5s ease-in-out infinite alternate; }
+  #vMain .stats .stat:nth-child(2) { animation-delay: -1.2s; }
+  #vMain .stats .stat:nth-child(3) { animation-delay: -2.4s; }
+  #vMain .stats .stat:nth-child(4) { animation-delay: -3.6s; }
+
+  /* 飾り（花火・花など）がゆっくり回る */
+  @keyframes spin { to { rotate: 360deg; } }
+  #vMain .stats .stat::after, #vMain #goalBox::after { animation: spin 24s linear infinite; }
+
+  /* ごほうびのバーが、ひらいたときにのびる */
+  @keyframes grow { from { width: 0; } }
+  body.enter #goalBar { animation: grow 1.4s .4s cubic-bezier(.2,.8,.2,1) both; }
+
+  /* 「すいたいかも！」ボタンが、深呼吸のようにゆっくりふくらむ */
+  @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: 1.025; } }
+  #vMain .craving { animation: breathe 5s ease-in-out infinite; }
+
+  /* 深呼吸の丸から、波紋がひろがる */
+  @keyframes ripple { 0% { box-shadow: 0 0 0 0 rgba(198,220,241,.9); } 100% { box-shadow: 0 0 0 36px rgba(198,220,241,0); } }
+  #breath .circle { animation: ripple 2.4s ease-out infinite; }
+
+  /* 数字が増えたときに、ぽんっ */
+  @keyframes bump { 0% { scale: 1; } 40% { scale: 1.12; } 100% { scale: 1; } }
+  .bump { animation: bump .6s ease-out; display: inline-block; }
+
+  /* 新しく達成した「めやす」をしばらく光らせる */
+  .mile.just .chk { animation: bump .6s ease-out; }
+  .mile.just { background: rgba(251,232,166,.55); border-radius: 12px; transition: background 1s; }
+
+  #toast { white-space: nowrap; }
+  #sparkle { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  @media (prefers-reduced-motion: reduce) {
+    #vMain *, #breath * { animation: none !important; }
+  }
+</style>
+<canvas id="sparkle"></canvas>
+<script>
+(function () {
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const COLORS = ['#7A0F14', '#FBE8A6', '#C6DCF1', '#3F2A27'];
+
+  // ひらいたときのふわっと
+  document.body.classList.add('enter');
+  setTimeout(() => document.body.classList.remove('enter'), 2200);
+
+  // ===== 小さなキラキラ（お祝い用・控えめ） =====
+  const cv = document.getElementById('sparkle'), ctx = cv.getContext('2d');
+  let ps = [], run = false;
+  const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
+  addEventListener('resize', fit); fit();
+  function sparkle(el) {
+    if (reduce || !el) return;
+    const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    for (let i = 0; i < 28; i++) {
+      const a = Math.random() * Math.PI * 2, s = 1.5 + Math.random() * 3.5;
+      ps.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, r: 2 + Math.random() * 3, c: COLORS[i % 4], life: 1 });
+    }
+    if (!run) { run = true; requestAnimationFrame(step); }
+  }
+  function step() {
+    const d = devicePixelRatio; ctx.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => {
+      p.vy += .06; p.x += p.vx; p.y += p.vy; p.life -= .018;
+      ctx.globalAlpha = Math.max(p.life, 0); ctx.fillStyle = p.c;
+      ctx.beginPath(); ctx.arc(p.x * d, p.y * d, p.r * d, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    ps = ps.filter(p => p.life > 0);
+    if (ps.length) requestAnimationFrame(step); else { run = false; ctx.clearRect(0, 0, cv.width, cv.height); }
+  }
+  function bump(el) { if (!el || reduce) return; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+
+  // ===== 数字が増えたとき（日数・がまんできた回数） =====
+  function watchNumber(id, celebrate) {
+    const el = document.getElementById(id); if (!el) return;
+    let last = parseInt(el.textContent, 10);
+    new MutationObserver(() => {
+      const v = parseInt(el.textContent, 10);
+      if (!isNaN(last) && v > last) { bump(el); if (celebrate) sparkle(el); }
+      last = v;
+    }).observe(el, { childList: true, characterData: true, subtree: true });
+  }
+  watchNumber('days', true);
+  watchNumber('win', true);
+
+  // ===== 新しく「めやす」を達成したとき =====
+  const miles = document.getElementById('miles');
+  let doneCount = null, justIdx = -1, justUntil = 0;
+  if (miles) new MutationObserver(() => {
+    const rows = miles.querySelectorAll('.mile'), done = miles.querySelectorAll('.mile.done').length;
+    if (doneCount !== null && done > doneCount) {
+      justIdx = done - 1; justUntil = Date.now() + 4000;
+      const t = rows[justIdx] && rows[justIdx].querySelector('.t');
+      if (t && typeof toast === 'function') toast('🎉 ' + t.textContent + ' たっせい！');
+      sparkle(rows[justIdx]);
+    }
+    doneCount = done;
+    if (Date.now() < justUntil && rows[justIdx]) rows[justIdx].classList.add('just');
+  }).observe(miles, { childList: true });
+})();
+</script>
+<!-- ===== アニメーション（ここまで） ===== -->
+
 </body>
 </html>
