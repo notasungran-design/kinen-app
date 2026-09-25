@@ -3,22 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>きんえんカウンター</title>
+<title>smoking</title>
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="きんえん">
+<meta name="apple-mobile-web-app-title" content="smoking">
 <meta name="theme-color" content="#FFFFFF">
-<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  /* ===== 色とフォント（ここを変えると全体の雰囲気が変わります） ===== */
+  /* ===== フォント（Zen Maru Gothic：読みやすい丸ゴシック） ===== */
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
+
+  /* ===== 色（白ベース・黒文字） ===== */
   :root {
-    --paper: #FFFFFF;     /* 紙の色 */
-    --ink:   #1B1B1B;     /* 線と文字 */
-    --sub:   #6B6B6B;     /* うすい文字 */
-    --blue:  #4A93E6;     /* アクセントの水彩ブルー */
-    --blue-soft: #DCEBFB;
+    --paper: #FFFFFF;
+    --ink:   #111111;
+    --sub:   #555555;
+    --soft:  #F2F2F2;
     color-scheme: light;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
@@ -26,79 +27,82 @@
   }
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; background: var(--paper); color: var(--ink);
-    font-family: "Klee One", "Hiragino Maru Gothic ProN", "Yu Gothic", cursive; font-weight: 600; }
+    font-family: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif; font-weight: 700; }
   .wrap { max-width: 480px; margin: 0 auto; padding: 18px 18px 48px; }
   .hide { display: none !important; }
-  .note { font-size: .8rem; color: var(--sub); line-height: 1.7; font-weight: 400; }
+  .note { font-size: .82rem; color: var(--sub); line-height: 1.7; font-weight: 500; }
 
-  /* ===== 手描きの枠 =====
-     .hd を付けた箱のまわりに、ゆらいだ線を2本重ねて描きます */
+  /* ===== 手描きの枠（太いマーカーの線・1本） ===== */
   .hd { position: relative; padding: 16px 18px; margin-bottom: 16px; background: transparent; }
-  .hd::before, .hd::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-    border: 2.6px solid var(--ink); border-radius: var(--r, 14px 20px 12px 22px / 20px 12px 22px 14px); filter: url(#rough); }
-  .hd::after { inset: 3px -2px -2px 2px; border-width: 1.4px; opacity: .55; filter: url(#rough2); }
+  .hd::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    border: 3.5px solid var(--ink); border-radius: var(--r, 14px 20px 12px 22px / 20px 12px 22px 14px); filter: url(#rough); }
+  .hd::after { content: none; }
   .oval { --r: 50%; }
   .pill { --r: 999px; }
-  .tilt-l { transform: rotate(-1.2deg); }
-  .tilt-r { transform: rotate(1deg); }
+  .tilt-l { transform: rotate(-.6deg); }
+  .tilt-r { transform: rotate(.5deg); }
 
-  /* 見出し：手描きの下線 */
+  /* ===== 見出し：マーカーの下線 ===== */
   h1 { margin: 0; }
   .logo { display: block; width: 120px; margin: 0 auto 6px; }
-  h2 { font-size: 1.05rem; margin: 30px 0 12px; display: inline-block; position: relative; }
-  h2::after { content: ""; position: absolute; left: -4px; right: -6px; bottom: -2px; height: 9px;
-    background: var(--blue-soft); z-index: -1; border-radius: 6px 10px 4px 12px; transform: rotate(-1deg); }
+  h2 { font-size: 1.1rem; font-weight: 900; margin: 30px 0 14px; display: inline-block; position: relative; }
+  h2::after { content: ""; position: absolute; left: -2px; right: -4px; bottom: -6px; height: 4px;
+    background: var(--ink); border-radius: 4px; transform: rotate(-.8deg); }
 
-  /* ===== すわずに◯日（だ円） ===== */
+  /* ===== すわずに◯日 ===== */
   .hero { text-align: center; padding: 34px 20px 30px; margin: 10px 4px 22px; }
-  .hero .lbl { font-size: .95rem; color: var(--sub); }
-  .hero .days { font-size: 4.2rem; line-height: 1; margin: 6px 0 2px; }
-  .hero .days small { font-size: 1.3rem; margin-left: 4px; }
-  .hero .clock { font-size: 1.3rem; letter-spacing: .08em; }
+  .hero .lbl { font-size: 1rem; color: var(--sub); }
+  .hero .days { font-size: 4.6rem; font-weight: 900; line-height: 1; margin: 6px 0 4px; }
+  .hero .days small { font-size: 1.4rem; margin-left: 4px; }
+  .hero .clock { font-size: 1.35rem; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
 
   /* ===== 4つの数字 ===== */
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .stat { text-align: center; padding: 14px 8px; margin: 0; }
-  .stat .v { font-size: 1.55rem; }
-  .stat .l { font-size: .78rem; color: var(--sub); font-weight: 400; margin-top: 2px; }
+  .stat { text-align: center; padding: 16px 8px; margin: 0; }
+  .stat .v { font-size: 1.7rem; font-weight: 900; }
+  .stat .l { font-size: .8rem; color: var(--sub); font-weight: 500; margin-top: 2px; }
 
   /* ===== ごほうび目標 ===== */
-  .goal .bar { position: relative; height: 18px; margin: 10px 0 6px; }
-  .goal .bar::before { content: ""; position: absolute; inset: 0; border: 2px solid var(--ink); border-radius: 10px 14px 9px 12px; filter: url(#rough); }
-  .goal .bar i { position: absolute; left: 3px; top: 3px; bottom: 3px; display: block; border-radius: 8px;
-    background: repeating-linear-gradient(-45deg, var(--blue) 0 6px, #6FA9EC 6px 12px); transition: width .5s; }
+  .goal .bar { position: relative; height: 20px; margin: 10px 0 6px; }
+  .goal .bar::before { content: ""; position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 12px; filter: url(#rough); }
+  .goal .bar i { position: absolute; left: 4px; top: 4px; bottom: 4px; display: block; border-radius: 8px;
+    background: var(--ink); transition: width .5s; }
 
   /* ===== ボタン ===== */
-  button { font-family: inherit; font-weight: 600; font-size: 1.05rem; color: var(--ink); background: transparent;
+  button { font-family: inherit; font-weight: 700; font-size: 1.05rem; color: var(--ink); background: transparent;
     border: none; padding: 16px; width: 100%; cursor: pointer; }
   button.hd { margin: 12px 0 0; }
-  .craving { font-size: 1.25rem; padding: 22px; margin-top: 20px !important; background: var(--blue-soft); border-radius: 999px; }
+  .craving { font-size: 1.35rem; font-weight: 900; padding: 22px; margin-top: 20px !important;
+    background: var(--ink); color: #fff; border-radius: 999px; }
   .primary { background: var(--ink); color: #fff; border-radius: 16px 22px 14px 24px / 22px 14px 24px 16px; margin-top: 16px; }
   .ghost { color: var(--sub); font-size: .95rem; text-decoration: underline; text-underline-offset: 4px; padding: 12px; }
   button:active { transform: scale(.98); }
 
-  /* ===== からだの回復のめやす ===== */
+  /* ===== からだの回復のめやす：手描きの丸 ===== */
   .mile { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; }
-  .chk { position: relative; width: 26px; height: 26px; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
-  .chk::before { content: ""; position: absolute; inset: 0; border: 2px solid var(--ink); border-radius: 5px 8px 4px 7px; filter: url(#rough); }
-  .mile .t { font-size: .95rem; }
-  .mile .d { font-size: .85rem; color: var(--sub); font-weight: 400; line-height: 1.6; }
-  .mile.done .chk { color: var(--blue); }
-  .mile.next .t::after { content: " ← いまここ"; color: var(--blue); font-size: .8rem; }
+  .chk { position: relative; width: 30px; height: 30px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 900; color: #fff; }
+  .chk::before { content: ""; position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 50%; filter: url(#rough); z-index: -1; }
+  .mile.done .chk::before { background: var(--ink); }          /* たっせい：黒くぬりつぶし＋白い✓ */
+  .mile.next .chk::before { border-style: dashed; }             /* つぎの目標：点線の丸 */
+  .mile .t { font-size: 1rem; font-weight: 900; }
+  .mile .d { font-size: .88rem; color: var(--sub); font-weight: 500; line-height: 1.6; }
+  .mile.done .t, .mile.done .d { color: #999; }
+  .mile.next .t::after { content: " ← いまここ"; font-size: .82rem; }
 
   /* ===== 入力欄 ===== */
-  label { display: block; font-size: .92rem; margin: 16px 0 6px; }
-  input { font-family: inherit; font-weight: 600; font-size: 1.05rem; width: 100%; padding: 10px 4px; color: var(--ink);
-    background: transparent; border: none; border-bottom: 2px dashed var(--ink); border-radius: 0; outline: none; }
-  input:focus { border-bottom-style: solid; border-bottom-color: var(--blue); }
+  label { display: block; font-size: .95rem; margin: 16px 0 6px; }
+  input { font-family: inherit; font-weight: 700; font-size: 1.1rem; width: 100%; padding: 10px 4px; color: var(--ink);
+    background: transparent; border: none; border-bottom: 3px solid var(--ink); border-radius: 0; outline: none; }
+  input:focus { border-bottom-color: #777; }
 
   /* ===== 深呼吸 ===== */
   #breath { position: fixed; inset: 0; background: var(--paper); z-index: 20; display: flex; flex-direction: column;
     align-items: center; justify-content: center; padding: 24px; text-align: center; }
-  .circle { width: 190px; height: 190px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
-    background: var(--blue-soft); border-radius: 50%; transition: transform 4s ease-in-out; }
-  #breath .left { font-size: 1.2rem; margin-top: 34px; color: var(--sub); }
-  #breath .tips { font-size: .9rem; color: var(--sub); font-weight: 400; margin-top: 18px; line-height: 1.9; }
+  .circle { width: 190px; height: 190px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 900;
+    background: var(--soft); border-radius: 50%; transition: transform 4s ease-in-out; }
+  #breath .left { font-size: 1.3rem; margin-top: 34px; color: var(--sub); }
+  #breath .tips { font-size: .92rem; color: var(--sub); font-weight: 500; margin-top: 18px; line-height: 1.9; }
   #breath button { max-width: 300px; }
 
   #toast { position: fixed; left: 50%; top: calc(20px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
@@ -140,7 +144,7 @@
   <!-- ===== メイン ===== -->
   <section id="vMain" class="hide">
     <div class="hd oval hero">
-      <div class="lbl">すわずに</div>
+      <div class="lbl">Smoke-free for</div>
       <div class="days"><span id="days">0</span><small>日</small></div>
       <div class="clock" id="clock">00:00:00</div>
     </div>
@@ -158,14 +162,14 @@
       <div class="note" id="goalText"></div>
     </div>
 
-    <button class="hd pill craving" onclick="startBreath()">すいたくなった！</button>
+    <button class="hd pill craving" onclick="startBreath()">すいたいかも！</button>
 
     <h2>からだの回復のめやす</h2>
     <div id="miles"></div>
     <p class="note">※WHOなどが紹介している一般的なめやすです。個人差があります。</p>
 
-    <button class="hd" onclick="openSettings()">せってい</button>
-    <button class="ghost" onclick="slipped()">すってしまった…</button>
+    <button class="hd" onclick="openSettings()">設定</button>
+    <button class="ghost" onclick="slipped()">吸っちゃった…</button>
   </section>
 
   <!-- ===== せってい ===== -->
@@ -181,7 +185,7 @@
       <input id="eGoalName" placeholder="例：新しいスニーカー">
       <input id="eGoalPrice" type="number" inputmode="numeric" placeholder="金額（円）" style="margin-top:10px">
     </div>
-    <button class="primary" onclick="saveSettings()">ほぞんしてもどる</button>
+    <button class="primary" onclick="saveSettings()">保存して戻る</button>
     <button class="ghost" onclick="show('vMain')">キャンセル</button>
     <button class="ghost" style="color:#C0392B" onclick="resetAll()">すべてのデータをけす</button>
   </section>
@@ -189,11 +193,11 @@
 
 <!-- ===== 深呼吸 ===== -->
 <div id="breath" class="hide">
-  <div class="circle hd oval" id="circle">すって</div>
+  <div class="circle hd oval" id="circle">吸って</div>
   <div class="left" id="left">60</div>
-  <div class="tips">すいたい気持ちは、たいてい数分でおさまります。<br>水をのむ・歯をみがく・少し歩く、もおすすめ。</div>
+  <div class="tips">吸いたい気持ちは、たいてい数分でおさまります。<br>水をのむ・歯をみがく・少し歩く、もおすすめ。</div>
   <button class="primary" onclick="endBreath(true)">のりこえた！</button>
-  <button class="ghost" onclick="endBreath(false)">とじる</button>
+  <button class="ghost" onclick="endBreath(false)">clause</button>
 </div>
 
 <script>
@@ -319,7 +323,7 @@ function slipped() {
   s.slips.push(Date.now());
   s.start = Date.now();
   save(); tick();
-  toast('だいじょうぶ。ここからまたはじめよう 🌱');
+  toast('だいじょうぶ。ここからまたはじめよう ');
 }
 
 // ===== せってい =====
@@ -335,7 +339,7 @@ function saveSettings() {
   if (num('ePerDay') <= 0 || num('ePrice') <= 0 || num('ePerPack') <= 0) return toast('本数と値段をいれてね');
   s.perDay = num('ePerDay'); s.price = num('ePrice'); s.perPack = num('ePerPack');
   s.goalName = document.getElementById('eGoalName').value.trim(); s.goalPrice = num('eGoalPrice');
-  save(); toast('ほぞんしました'); show('vMain');
+  save(); toast('保存OK'); show('vMain');
 }
 function resetAll() {
   if (!confirm('すべてのデータをけします。よろしいですか？')) return;
@@ -354,5 +358,89 @@ if (s && s.start) show('vMain');
 else { document.getElementById('sStart').value = toLocalInput(Date.now()); show('vSetup'); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
+<!-- ===== デコレーション：上から下へ流れる NO SMOKING（ここから） ===== -->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+  body { position: relative; overflow-x: hidden; }
+  .wrap { position: relative; z-index: 1; }
+  /* 箱や文章のうしろは白くして、読みやすさをキープ */
+  .hd:not(.craving) { background: var(--paper); border-radius: var(--r, 14px 20px 12px 22px / 20px 12px 22px 14px); }
+  .chk { isolation: isolate; }   /* 丸いチェックが白い背景に隠れないように */
+  #miles, #vMain > h2, #vMain > .note, .ghost { background: var(--paper); }
+  #deco { position: absolute; left: 0; top: 0; width: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+  #deco text { font-family: "Permanent Marker", "Arial Black", sans-serif; fill: var(--ink); letter-spacing: 1px; }
+  #deco .mark { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+<svg id="deco" aria-hidden="true"></svg>
+<script>
+(function () {
+  // ▼ ここを変えると、流れる言葉・大きさ・カーブの間隔が変わります
+  const WORD = 'NO SMOKING ・ ';
+  const SIZE = 24;        // 文字の大きさ
+  const WAVE = 460;       // カーブ1回分の高さ（小さいほど細かくうねる）
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('deco');
+  let lastH = 0, lastW = 0;
+
+  function el(tag, attrs) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function star(x, y, s) {   // 手描きの星
+    return el('path', { class: 'mark', d:
+      `M${x} ${y - 10 * s} L${x + 3 * s} ${y - 3 * s} L${x + 10 * s} ${y - 2 * s} L${x + 4 * s} ${y + 3 * s} L${x + 6 * s} ${y + 10 * s} L${x} ${y + 6 * s} L${x - 6 * s} ${y + 10 * s} L${x - 4 * s} ${y + 3 * s} L${x - 10 * s} ${y - 2 * s} L${x - 3 * s} ${y - 3 * s} Z` });
+  }
+  function burst(x, y, s, flip) {   // 勢いの線（〃）
+    const f = flip ? -1 : 1;
+    return el('path', { class: 'mark', d:
+      `M${x} ${y} l${f * 14 * s} ${-26 * s} M${x + f * 16 * s} ${y + 4 * s} l${f * 20 * s} ${-22 * s} M${x + f * 26 * s} ${y + 16 * s} l${f * 24 * s} ${-12 * s}` });
+  }
+
+  function draw() {
+    const w = document.documentElement.clientWidth;
+    const h = Math.max(document.body.scrollHeight, window.innerHeight);
+    if (h === lastH && w === lastW) return;
+    lastH = h; lastW = w;
+    svg.setAttribute('width', w); svg.setAttribute('height', h);
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.innerHTML = '';
+
+    // 右上から、左右にゆれながら下へ流れるカーブ
+    let x = w * 0.96, y = -40, d = `M ${x} ${y}`, right = true;
+    while (y < h + WAVE) {
+      const nx = right ? w * 0.04 : w * 0.96, ny = y + WAVE;
+      d += ` C ${x} ${y + WAVE * 0.55} ${nx} ${ny - WAVE * 0.55} ${nx} ${ny}`;
+      x = nx; y = ny; right = !right;
+    }
+    const path = el('path', { id: 'decoPath', d, fill: 'none' });
+    svg.appendChild(path);
+    const len = path.getTotalLength();
+    const reps = Math.ceil(len / (WORD.length * SIZE * 0.62)) + 2;
+
+    const text = el('text', { 'font-size': SIZE });
+    const tp = el('textPath', { href: '#decoPath' });
+    tp.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#decoPath');
+    tp.textContent = WORD.repeat(reps);
+    text.appendChild(tp); svg.appendChild(text);
+
+    // 星と勢いの線を、左右のすき間に少しだけ
+    for (let yy = 120, i = 0; yy < h - 60; yy += 380, i++) {
+      const left = i % 2 === 0;
+      svg.appendChild(star(left ? 20 : w - 20, yy, 1));
+      if (i % 2 === 1) svg.appendChild(burst(left ? w - 60 : 14, yy + 170, 1, !left));
+    }
+  }
+
+  window.addEventListener('load', draw);
+  window.addEventListener('resize', draw);
+  new ResizeObserver(draw).observe(document.body);
+  if (document.fonts) document.fonts.ready.then(() => { lastH = 0; draw(); });
+  draw();
+})();
+</script>
+<!-- ===== デコレーション（ここまで） ===== -->
+
 </body>
 </html>
