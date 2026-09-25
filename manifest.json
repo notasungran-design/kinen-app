@@ -1,0 +1,12 @@
+{
+  "name": "きんえんカウンター",
+  "short_name": "きんえん",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#EAF7F2",
+  "theme_color": "#EAF7F2",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
