@@ -55,6 +55,7 @@
   .hero .days { font-size: 4.6rem; font-weight: 900; line-height: 1; margin: 6px 0 4px; }
   .hero .days small { font-size: 1.4rem; margin-left: 4px; }
   .hero .clock { font-size: 1.35rem; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+  .today { text-align: center; font-size: .95rem; color: var(--sub); margin: 4px 0 0; }
 
   /* ===== 4つの数字 ===== */
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -143,6 +144,7 @@
 
   <!-- ===== メイン ===== -->
   <section id="vMain" class="hide">
+    <div class="today" id="today"></div>
     <div class="hd oval hero">
       <div class="lbl">Smoke-free for</div>
       <div class="days"><span id="days">0</span><small>日</small></div>
@@ -245,6 +247,9 @@ function saveSetup() {
 const yen = n => '¥' + Math.floor(n).toLocaleString('ja-JP');
 function tick() {
   if (!s) return;
+  const now = new Date();
+  document.getElementById('today').textContent =
+    `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${'日月火水木金土'[now.getDay()]}）`;
   const ms = Math.max(0, Date.now() - s.start);
   const days = ms / 86400000;
   const sec = Math.floor(ms / 1000);
