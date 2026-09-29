@@ -348,7 +348,7 @@ function saveSettings() {
 }
 function resetAll() {
   if (!confirm('すべてのデータをけします。よろしいですか？')) return;
-  try { localStorage.removeItem(KEY); } catch (e) {}
+  try { localStorage.removeItem(KEY); localStorage.removeItem(KEY + '-before-import'); } catch (e) {}
   location.reload();
 }
 
@@ -648,6 +648,190 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 })();
 </script>
 <!-- ===== ごほうびバッジ（ここまで） ===== -->
+
+<!-- ===== 記録のひきつぎ（ここから） ===== -->
+<style>
+  .xfer { margin-top: 26px; }
+  .xfer h3 { font-size: 1rem; font-weight: 900; margin: 0 0 4px; }
+  .xfer button.hd { font-size: .95rem; padding: 12px; margin: 10px 0 0; }
+  .xfer hr { border: none; border-top: 2px dashed #D8CCCA; margin: 18px 0 6px; }
+  .xfer textarea { display: block; width: 100%; min-height: 96px; margin-top: 10px; padding: 10px; resize: vertical;
+    font: 500 .8rem/1.5 ui-monospace, Menlo, monospace; color: var(--ink); background: var(--soft);
+    border: none; border-radius: 12px; outline: none; word-break: break-all; }
+  .xfer .paste .primary { margin-top: 10px; padding: 12px; }
+  .xfer .undo { margin-top: 12px; }
+</style>
+<script>
+(function () {
+  const PREV = KEY + '-before-import';   // 読み込む直前の記録（1回分だけ）
+  const PREFIX = 'KINEN1:';               // コードの目印
+  const VERSION = 1;                      // 書き出すファイルの形のバージョン
+  const pad = n => String(n).padStart(2, '0');
+  const ymd = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const jpDate = t => { const d = new Date(t); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; };
+  const daysOf = start => Math.floor(Math.max(0, Date.now() - start) / 86400000);
+
+  // ===== 書き出し =====
+  function payload() {
+    return JSON.stringify({ app: 'kinen', version: VERSION, exportedAt: new Date().toISOString(), data: s });
+  }
+  // 日本語（ごほうび目標など）もくずれないよう、UTF-8 にしてから英数字の文字列にする
+  function toCode(json) {
+    let bin = '';
+    new TextEncoder().encode(json).forEach(b => bin += String.fromCharCode(b));
+    return PREFIX + btoa(bin);
+  }
+  async function exportFile() {
+    const name = `kinen-backup-${ymd(Date.now())}.json`;
+    const file = new File([payload()], name, { type: 'application/json' });
+    // スマホでは共有メニュー（ファイルに保存・LINE・メールなど）を出す
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'きんえんカウンターの記録' }); return; }
+      catch (e) { if (e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('ファイルを書き出しました');
+  }
+  async function copyCode(box) {
+    const code = toCode(payload());
+    try { await navigator.clipboard.writeText(code); toast('コードをコピーしました'); }
+    catch (e) {
+      // コピーできないブラウザでは、コードを表示して自分でコピーしてもらう
+      const out = box.querySelector('.code-out');
+      out.value = code; out.classList.remove('hide'); out.focus(); out.select();
+      toast('コードを長おしでコピーしてね');
+    }
+  }
+
+  // ===== 読み込み =====
+  function parse(text) {
+    text = String(text || '').trim();
+    let obj;
+    try {
+      if (text.startsWith(PREFIX)) {
+        const bin = atob(text.slice(PREFIX.length).replace(/\s/g, ''));
+        text = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+      }
+      obj = JSON.parse(text);
+    } catch (e) { throw new Error('読み込めませんでした。コードやファイルをたしかめてね'); }
+    if (!obj || obj.app !== 'kinen' || !obj.data || typeof obj.data !== 'object') throw new Error('きんえんカウンターの記録ではないようです');
+    if (!(obj.version >= 1)) throw new Error('きんえんカウンターの記録ではないようです');
+    if (obj.version > VERSION) throw new Error('新しいアプリで書き出された記録です。アプリを最新にしてから読み込んでね');
+
+    const d = obj.data;
+    const pos = v => typeof v === 'number' && isFinite(v) && v > 0;
+    const nonneg = v => (typeof v === 'number' && isFinite(v) && v >= 0) ? v : 0;
+    // スマホどうしの時計のずれは1日まで許す
+    if (!pos(d.start) || d.start > Date.now() + 86400000 || !pos(d.perDay) || !pos(d.price) || !pos(d.perPack)) {
+      throw new Error('記録の中身がこわれているようです');
+    }
+    // 足りない項目は空の値でおぎなう
+    return {
+      exportedAt: Date.parse(obj.exportedAt),
+      data: {
+        ...d,
+        goalName: typeof d.goalName === 'string' ? d.goalName : '',
+        goalPrice: nonneg(d.goalPrice), wins: nonneg(d.wins), best: nonneg(d.best),
+        slips: Array.isArray(d.slips) ? d.slips.filter(pos) : [],
+        badges: (d.badges && typeof d.badges === 'object' && !Array.isArray(d.badges)) ? d.badges : {},
+      },
+    };
+  }
+  function tryImport(text) {
+    let p;
+    try { p = parse(text); } catch (e) { return toast(e.message); }
+    const d = p.data, has = s && s.start;
+    const lines = ['この記録を読み込みますか？', '',
+      `・やめた日：${jpDate(d.start)}（すわずに${daysOf(d.start)}日）`,
+      `・がまんできた回数：${d.wins}回`];
+    if (!isNaN(p.exportedAt)) lines.push(`・書き出した日：${jpDate(p.exportedAt)}`);
+    if (has) lines.push('', `いまのスマホの記録（すわずに${daysOf(s.start)}日）は、この内容に置きかわります。`,
+      '（読み込む前の記録は1回分だけ控えておくので、あとから元に戻せます）');
+    if (!confirm(lines.join('\n'))) return;
+
+    if (has) { try { localStorage.setItem(PREV, JSON.stringify({ at: Date.now(), data: s })); } catch (e) {} }
+    s = d; save();
+    document.querySelectorAll('.xfer .code-in').forEach(t => t.value = '');
+    document.querySelectorAll('.xfer .paste').forEach(el => el.classList.add('hide'));
+    refresh(); toast('記録をひきつぎました'); show('vMain');
+  }
+
+  // ===== 元に戻す =====
+  function prev() { try { return JSON.parse(localStorage.getItem(PREV)); } catch (e) { return null; } }
+  function undo() {
+    const p = prev();
+    if (!p || !p.data) return;
+    if (!confirm(`${jpDate(p.at)}に読み込む前の記録（やめた日：${jpDate(p.data.start)}）に戻しますか？\nいまの記録は、この内容に置きかわります。`)) return;
+    s = p.data; save();
+    try { localStorage.removeItem(PREV); } catch (e) {}
+    refresh(); toast('元に戻しました'); show('vMain');
+  }
+
+  // ===== 画面 =====
+  const importButtons = `
+    <button class="hd" data-act="file">ファイルから読み込む</button>
+    <button class="hd" data-act="paste">コードを貼りつけて読み込む</button>
+    <div class="paste hide">
+      <textarea class="code-in" placeholder="KINEN1: からはじまるコードを貼りつけてね"></textarea>
+      <button class="primary" data-act="load">読み込む</button>
+    </div>
+    <input type="file" class="hide">`;
+
+  function wire(box) {
+    const file = box.querySelector('input[type=file]');
+    box.addEventListener('click', e => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const act = btn.dataset.act;
+      if (act === 'export') exportFile();
+      if (act === 'copy') copyCode(box);
+      if (act === 'file') { file.value = ''; file.click(); }
+      if (act === 'paste') box.querySelector('.paste').classList.toggle('hide');
+      if (act === 'load') tryImport(box.querySelector('.code-in').value);
+      if (act === 'undo') undo();
+    });
+    file.addEventListener('change', () => { const f = file.files[0]; if (f) f.text().then(tryImport); });
+  }
+
+  // 設定画面：「すべてのデータをけす」の上
+  const setBox = document.createElement('div');
+  setBox.className = 'hd xfer tilt-l';
+  setBox.innerHTML = `
+    <h3>記録のひきつぎ</h3>
+    <p class="note" style="margin:0">スマホを変えるときや、もしものときにそなえて、記録をのこしておけます。</p>
+    <button class="hd" data-act="export">ファイルに書き出す</button>
+    <button class="hd" data-act="copy">コードをコピーする</button>
+    <textarea class="code-out hide" readonly></textarea>
+    <hr>
+    ${importButtons}
+    <button class="ghost undo hide" data-act="undo"></button>`;
+  document.querySelector('#vSettings button[onclick="resetAll()"]').before(setBox);
+  wire(setBox);
+
+  // はじめての設定：「スタート」の下に、前のスマホからひきつぐ入り口
+  const link = document.createElement('button');
+  link.className = 'ghost'; link.textContent = '前のスマホの記録をひきつぐ ›';
+  const setupBox = document.createElement('div');
+  setupBox.className = 'hd xfer hide';
+  setupBox.style.marginTop = '8px';
+  setupBox.innerHTML = `<p class="note" style="margin:0">前のスマホで書き出したファイルか、コピーしたコードを読み込んでね。</p>${importButtons}`;
+  link.onclick = () => setupBox.classList.toggle('hide');
+  document.querySelector('#vSetup .primary').after(link, setupBox);
+  wire(setupBox);
+
+  // 「元に戻す」は、控えがあるときだけ出す
+  function refresh() {
+    const p = prev(), b = setBox.querySelector('.undo');
+    b.classList.toggle('hide', !(p && p.data));
+    if (p && p.data) b.textContent = `読み込む前の記録に戻す（${jpDate(p.at)}に読み込み）`;
+  }
+  refresh();
+})();
+</script>
+<!-- ===== 記録のひきつぎ（ここまで） ===== -->
 
 </body>
 </html>
